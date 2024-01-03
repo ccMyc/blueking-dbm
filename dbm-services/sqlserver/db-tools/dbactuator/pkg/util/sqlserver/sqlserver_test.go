@@ -14,34 +14,27 @@ import (
 	"fmt"
 	"testing"
 
-	mssql "github.com/denisenkom/go-mssqldb"
-
 	"dbm-services/sqlserver/db-tools/dbactuator/pkg/util/sqlserver"
 )
 
 func Test(t *testing.T) {
-
-	checkCmd := "select password_hash from master.sys.sql_logins"
-
-	type LoginInfo struct {
-		PasswordHash mssql.VarChar `db:"password_hash"`
-	}
 	var dbWork *sqlserver.DbWorker
 	var err error
 	if dbWork, err = sqlserver.NewDbWorker(
-		"xxx",
-		"xxx!",
-		"xxx",
+		"xx",
+		"xx!",
+		"xx",
 		1433,
 	); err != nil {
 		t.Log(err)
 		return
 	}
-	var getJobs []LoginInfo
-	if err := dbWork.Queryxs(&getJobs, checkCmd); err != nil {
+	var aaa int
+	checkCmd := "select count(0) as a  from master.sys.database_mirroring where database_id= 5 and mirroring_guid is not null"
+	if err := dbWork.Queryxs(&aaa, checkCmd); err != nil {
 		t.Log(err)
 		return
 	}
-	fmt.Printf("%+v\n", getJobs)
-
+	fmt.Printf("%+v\n", aaa)
+	fmt.Printf("%+v\n", checkCmd)
 }

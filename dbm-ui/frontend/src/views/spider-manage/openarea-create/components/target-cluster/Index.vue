@@ -17,9 +17,7 @@
     <ClusterSelector
       v-model:is-show="isShowBatchSelector"
       :cluster-types="[ClusterTypes.TENDBCLUSTER]"
-      :get-resource-list="getSpiderList"
       :selected="selectedClusters"
-      :tab-list="clusterSelectorTabList"
       @change="handelClusterChange" />
   </div>
 </template>
@@ -27,7 +25,6 @@
   import { shallowRef } from 'vue';
 
   import SpiderModel from '@services/model/spider/spider';
-  import { getSpiderList } from '@services/source/spider';
 
   import { ClusterTypes } from '@common/const';
 
@@ -63,10 +60,6 @@
     [ClusterTypes.TENDBCLUSTER]: [],
   });
 
-  const clusterSelectorTabList = [{
-    id: ClusterTypes.TENDBCLUSTER,
-    name: '集群',
-  }];
   const tableData = shallowRef<IDataRow[]>([createRowData()]);
 
   const handleShowBatchSelector = () => {

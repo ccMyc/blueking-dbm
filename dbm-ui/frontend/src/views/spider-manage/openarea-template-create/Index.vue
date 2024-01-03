@@ -115,7 +115,7 @@
     defaultParams: [
       {
         bk_biz_id: currentBizId,
-        cluster_types: 'tendbha,tendbcluster',
+        cluster_types: 'tendbcluster',
         phase: 'online',
       },
     ],
@@ -149,6 +149,7 @@
       bk_biz_id: currentBizId,
       ...formData,
       config_rules: configRule,
+      cluster_type: 'tendbcluster',
     }).then(() => {
       messageSuccess(t('新建成功'));
       window.changeConfirm = false;

@@ -64,6 +64,9 @@ GB = 1 << 30
 TB = 1 << 40
 PB = 1 << 50
 
+DEFAULT_JOB_TIMEOUT = 7200
+LONG_JOB_TIMEOUT = 86400
+
 # 默认监听时间，1分钟
 DEFAULT_MONITOR_TIME = 60000
 # 默认监听排除请求命令
@@ -392,6 +395,7 @@ class RedisActuatorActionEnum(str, StructuredEnum):
     VERSION_UPDATE = EnumField("version_update", _("version_update"))
     CLUSTER_FAILOVER = EnumField("cluster_failover", _("cluster_failover"))
     SLOTS_MIGRATE = EnumField("migrate_slots", _("migrate_slots"))
+    REUPLOAD_OLD_BACKUP_RECORDS = EnumField("reupload_old_backup_records", _("reupload_old_backup_records"))
 
 
 class EsActuatorActionEnum(str, StructuredEnum):

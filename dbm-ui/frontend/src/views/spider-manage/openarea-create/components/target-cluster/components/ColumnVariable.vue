@@ -12,13 +12,13 @@
 -->
 
 <template>
-  <div>
+  <td style="padding: 0;">
     <TableEditInput
       ref="editRef"
-      v-model="modelValue"
+      v-model="localValue"
       :placeholder="t('请输入')"
       :rules="rules" />
-  </div>
+  </td>
 </template>
 <script setup lang="ts">
   import { ref } from 'vue';
@@ -37,9 +37,7 @@
 
   const { t } = useI18n();
 
-  const modelValue = defineModel<string>({
-    default: '',
-  });
+  const localValue = ref('');
   const editRef = ref();
 
   const rules = [
@@ -54,7 +52,7 @@
       return (editRef.value as InstanceType<typeof TableEditInput>)
         .getValue()
         .then(() => ({
-          [props.name]: modelValue.value,
+          [props.name]: localValue.value,
         }));
     },
   });

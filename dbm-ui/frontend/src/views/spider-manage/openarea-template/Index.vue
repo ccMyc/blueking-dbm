@@ -75,44 +75,46 @@
       label: t('操作'),
       width: 190,
       render: ({ data }: {data: OpenareaTemplateModel}) => (
-          <>
-            <router-link
-              to={{
-                name: 'spiderOpenareaCreate',
-                params: {
-                  id: data.id,
-                },
-              }}>
-              { t('开区') }
-            </router-link>
-            <router-link
+        <>
+          <router-link
+            to={{
+              name: 'spiderOpenareaCreate',
+              params: {
+                id: data.id,
+              },
+            }}>
+            { t('开区') }
+          </router-link>
+          <router-link
+            class="ml-16"
+            to={{
+              name: 'spiderOpenareaTemplateEdit',
+              params: {
+                id: data.id,
+              },
+            }}>
+            { t('编辑') }
+          </router-link>
+          <db-popconfirm
+            title={t('确认删除该模板？')}
+            content={t('删除操作无法撤回，请谨慎操作！')}
+            confirmHandler={() => handleRemove(data)}>
+            <bk-button
               class="ml-16"
-              to={{
-                name: 'spiderOpenareaTemplateEdit',
-                params: {
-                  id: data.id,
-                },
-              }}>
-              { t('编辑') }
-            </router-link>
-            <db-popconfirm
-              title={t('确认删除该模板？')}
-              content={t('删除操作无法撤回，请谨慎操作！')}
-              confirmHandler={() => handleRemove(data)}>
-              <bk-button
-                class="ml-16"
-                text
-                theme="primary">
-                { t('删除') }
-              </bk-button>
-            </db-popconfirm>
-          </>
-        ),
+              text
+              theme="primary">
+              { t('删除') }
+            </bk-button>
+          </db-popconfirm>
+        </>
+      ),
     },
   ];
 
   const fetchData = () => {
-    tableRef.value.fetchData();
+    tableRef.value.fetchData({
+      cluster_type: 'tendbcluster',
+    });
   };
 
   watch(serachKey, () => {

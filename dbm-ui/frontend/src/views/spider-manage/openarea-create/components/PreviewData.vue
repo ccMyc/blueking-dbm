@@ -15,7 +15,7 @@
   import { useRouter } from 'vue-router';
 
   import { getPreview } from '@services/openarea';
-  import { createTicket } from '@services/ticket';
+  import { createTicket } from '@services/source/ticket';
 
   import { useGlobalBizs } from '@stores';
 
@@ -43,18 +43,22 @@
     {
       label: t('目标集群'),
       field: 'target_cluster_domain',
+      showOverflowTooltip: true,
       width: 220,
     },
     {
       label: t('新 DB'),
       field: 'target_db',
+      showOverflowTooltip: true,
     },
     {
       label: t('源 DB'),
       field: 'source_db',
+      showOverflowTooltip: true,
     },
     {
       label: t('表结构'),
+      showOverflowTooltip: true,
       render: ({ data }: {data: UnwrapRef<typeof tableData>[0]}) => (
         <>
           {data.schema_tblist.map(item => (
@@ -65,6 +69,7 @@
     },
     {
       label: t('表数据'),
+      showOverflowTooltip: true,
       render: ({ data }: {data: UnwrapRef<typeof tableData>[0]}) => (
         <>
           {data.data_tblist.map(item => (
@@ -75,6 +80,7 @@
     },
     {
       label: t('授权 IP'),
+      showOverflowTooltip: true,
       render: ({ data }: {data: UnwrapRef<typeof tableData>[0]}) => (
         <>
           {data.authorize_ips.map(item => (
@@ -85,6 +91,7 @@
     },
     {
       label: t('授权规则'),
+      showOverflowTooltip: true,
       render: ({ data }: {data: UnwrapRef<typeof tableData>[0]}) => (
         <bk-button
           text

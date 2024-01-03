@@ -31,6 +31,22 @@ type DbWorker struct {
 	Db  *sql.DB
 }
 
+type InstanceInfo struct {
+	ServerName string `db:"servername"`
+	Hostname   string `db:"hostname"`
+}
+
+// 定义连接状态的结构
+type ProcessInfo struct {
+	Spid        int    `db:"spid"`
+	DbName      string `db:"dbname"`
+	Cmd         string `db:"cmd"`
+	Status      string `db:"status"`
+	ProgramName string `db:"program_name"`
+	Hostname    string `db:"hostname"`
+	LoginTime   string `db:"login_time"`
+}
+
 // NewDbWorker 初始化SQLserver实例对象
 func NewDbWorker(user string, pass string, server string, port int) (dbw *DbWorker, err error) {
 	dsn := fmt.Sprintf(
@@ -108,7 +124,7 @@ func (h *DbWorker) Queryx(data interface{}, query string, args ...interface{}) e
 	return nil
 }
 
-// Queryxs execute query use sqlx return Single column
+// Queryxs execute query use sqlx return Single row
 func (h *DbWorker) Queryxs(data interface{}, query string) error {
 	// logger.Info("Queryxs:%s", query)
 	db := sqlx.NewDb(h.Db, "mssql")
@@ -128,12 +144,137 @@ func (h *DbWorker) ShowDatabases() (databases []string, err error) {
 	return
 }
 
-// ShowDatabases 执行show database 获取所有的dbName
-// 正常情况值遍历可读写以及状态为running 的 业务数据库列表
+// GetVersion 获取实例的版本信息
 func (h *DbWorker) GetVersion() (version string, err error) {
 	cmd := "select SUBSTRING(@@VERSION, 1, CHARINDEX('-', @@VERSION) - 2) AS VersionInfo;"
 	err = h.Queryxs(&version, cmd)
 	return
+}
+
+// GetGroupName 获取Alwayson的group name
+func (h *DbWorker) GetGroupName() (name string, err error) {
+	cmd := "SELECT name from sys.availability_groups;"
+	err = h.Queryxs(&name, cmd)
+	return
+}
+
+// CheckDBProcessExist 判断db是否存在相关请求
+func (h *DbWorker) CheckDBProcessExist(dbName string) bool {
+	var procinfos []ProcessInfo
+	checkCmd := fmt.Sprintf("select spid, DB_NAME(dbid) as dbname ,cmd, status, program_name,hostname, login_time"+
+		" from master.sys.sysprocesses where dbid >4  and dbid = DB_ID('%s') order by login_time desc;", dbName)
+	if err := h.Queryx(&procinfos, checkCmd); err != nil {
+		logger.Error("check-db-process failed %v", err)
+		return false
+	}
+	if len(procinfos) == 0 {
+		// 没有返回异常db列表则正常退出
+		return true
+	}
+	// 异常退出
+	for _, info := range procinfos {
+		logger.Error("process:[%+v]", info)
+	}
+	return false
+}
+
+// GetServerNameAndInstanceName 获取实例的相关信息
+func (h *DbWorker) GetServerNameAndInstanceName() (info []InstanceInfo, err error) {
+
+	cmd := "SELECT CAST(SERVERPROPERTY('ServerName') AS sysname) as servername, " +
+		"case when CAST(SERVERPROPERTY('ServerName') AS sysname) " +
+		"like '%\\%' then substring(CAST(SERVERPROPERTY('ServerName') AS sysname)," +
+		"0,charindex('\\',CAST(SERVERPROPERTY('ServerName') AS sysname))) " +
+		"else CAST(SERVERPROPERTY('ServerName') AS sysname) end as hostname"
+
+	err = h.Queryx(&info, cmd)
+	return
+}
+
+// DisableBackupJob 禁止备份JOB
+func (h *DbWorker) DisableBackupJob(isForce bool) (err error) {
+	cmds := []string{
+		"exec msdb.dbo.sp_update_job @job_name='TC_BACKUP_FULL',@enabled=0;",
+		"exec msdb.dbo.sp_update_job @job_name='TC_BACKUP_LOG',@enabled=0",
+	}
+	if _, err := h.ExecMore(cmds); err != nil {
+		log := fmt.Sprintf("disable backup jobs failed %v", err)
+		if isForce {
+			return fmt.Errorf(log)
+		} else {
+			logger.Warn(log)
+		}
+	}
+	return nil
+}
+
+// DisableBackupJob 启动备份JOB
+func (h *DbWorker) EnableBackupJob() (err error) {
+	cmds := []string{
+		"exec msdb.dbo.sp_update_job @job_name='TC_BACKUP_FULL',@enabled=1;",
+		"exec msdb.dbo.sp_update_job @job_name='TC_BACKUP_LOG',@enabled=1",
+	}
+	if _, err := h.ExecMore(cmds); err != nil {
+		return fmt.Errorf("enable backup jobs failed %v", err)
+	}
+	return nil
+}
+
+// EnableEndPoint 启动endpoint配置
+func (h *DbWorker) EnableEndPoint(end_port int) (err error) {
+	cmd := fmt.Sprintf(
+		`IF EXISTS(select 1 from [master].[sys].[database_mirroring_endpoints] where name='endpoint_mirroring') 
+			DROP ENDPOINT [endpoint_mirroring]
+		CREATE ENDPOINT [endpoint_mirroring] STATE=STARTED AS TCP (LISTENER_PORT = %d, LISTENER_IP = ALL) 
+		FOR DATA_MIRRORING (ROLE = PARTNER, AUTHENTICATION = WINDOWS NEGOTIATE, ENCRYPTION = REQUIRED ALGORITHM AES);
+		DECLARE @Login sysname;
+		SELECT @Login=name FROM sys.syslogins WHERE isntuser=1 and name like '%%sqlserver'
+		EXEC sp_addsrvrolemember @Login, 'sysadmin'
+		`, end_port)
+
+	if _, err := h.Exec(cmd); err != nil {
+		return fmt.Errorf("enable endpoint failed %v", err)
+	}
+	return nil
+}
+
+// 操作全量恢复命令
+func (h *DbWorker) DBRestoreForFullBackup(dbname string, fullBakFile string, move string, restoreMode string) error {
+	var restoreSQL string
+	if move == "" {
+		restoreSQL = fmt.Sprintf(
+			"restore database %s from disk='%s' with file = 1, %s",
+			dbname, fullBakFile, restoreMode,
+		)
+	} else {
+		restoreSQL = fmt.Sprintf(
+			"restore database %s from disk='%s' with file = 1, %s, %s",
+			dbname, fullBakFile, move, restoreMode,
+		)
+
+	}
+	logger.Info("execute restore full-backup-sql: %s", restoreSQL)
+	if _, err := h.Exec(restoreSQL); err != nil {
+		return fmt.Errorf("restore sql failed %v", err)
+	}
+	return nil
+
+}
+
+// 操作日志备份恢复命令
+func (h *DbWorker) DBRestoreForLogBackup(dbname string, logBakFile string, restoreMode string) error {
+
+	restoreSQL := fmt.Sprintf(
+		"restore log %s from disk='%s' with file = 1, %s",
+		dbname, logBakFile, restoreMode,
+	)
+
+	logger.Info("execute restore log-backup-sql: %s", restoreSQL)
+	if _, err := h.Exec(restoreSQL); err != nil {
+		return fmt.Errorf("restore sql failed %v", err)
+	}
+	return nil
+
 }
 
 // ExecLocalSQLFile TODO
@@ -158,6 +299,8 @@ func ExecLocalSQLFile(sqlVersion string, dbName string, charsetNO int, filenames
 		cmdSql = cst.SQLCMD_2017
 	case strings.Contains(sqlVersion, "2019"):
 		cmdSql = cst.SQLCMD_2019
+	case strings.Contains(sqlVersion, "2022"):
+		cmdSql = cst.SQLCMD_2022
 	default:
 		return fmt.Errorf("this version [%s] is not supported", sqlVersion)
 	}
