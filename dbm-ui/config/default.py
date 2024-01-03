@@ -63,6 +63,8 @@ INSTALLED_APPS += (
     "django_filters",
     # version log
     "backend.version_log",
+    # bk_notice
+    "bk_notice_sdk",
     # pipeline
     "pipeline.component_framework",
     "pipeline.eri",
@@ -289,6 +291,11 @@ USE_L10N = True
 LOCALURL_USE_ACCEPT_LANGUAGE = True
 LANGUAGE_COOKIE_NAME = "blueking_language"
 LANGUAGE_SESSION_KEY = "blueking_language"
+
+BK_NOTICE = {
+    "STAGE": "stage",
+    "BK_API_URL_TMPL": "http://{api_name}.apigw.o.woa.com",
+}
 
 # 设定使用根目录的locale
 LOCALE_PATHS = (os.path.join(PROJECT_ROOT, "locale"),)
